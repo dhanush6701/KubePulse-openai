@@ -1,0 +1,68 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+  REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  BACKEND_IMAGE_NAME: kubepulse-backend
+  FRONTEND_IMAGE_NAME: kubepulse-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to container registry
+        if: env.REGISTRY_URL != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_URL }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: ${{ env.REGISTRY_URL != '' }}
+          tags: |
+            ${{ env.REGISTRY_URL != '' && format('{0}/{1}:{2}', env.REGISTRY_URL, env.BACKEND_IMAGE_NAME, github.ref_name) || '' }}
+            ${{ env.REGISTRY_URL != '' && format('{0}/{1}:latest', env.REGISTRY_URL, env.BACKEND_IMAGE_NAME) || '' }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: ${{ env.REGISTRY_URL != '' }}
+          tags: |
+            ${{ env.REGISTRY_URL != '' && format('{0}/{1}:{2}', env.REGISTRY_URL, env.FRONTEND_IMAGE_NAME, github.ref_name) || '' }}
+            ${{ env.REGISTRY_URL != '' && format('{0}/{1}:latest', env.REGISTRY_URL, env.FRONTEND_IMAGE_NAME) || '' }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+
+      - name: Lint Helm chart
+        run: helm lint ./helm/kubepulse
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p ./artifacts
+          helm package ./helm/kubepulse --destination ./artifacts
+
+      - name: Upload Helm chart artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubepulse-helm-chart
+          path: ./artifacts/*.tgz

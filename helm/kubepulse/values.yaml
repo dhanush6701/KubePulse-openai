@@ -1,0 +1,45 @@
+replicaCount:
+  backend: 1
+  frontend: 1
+
+image:
+  backend:
+    repository: kubepulse-backend
+    tag: local
+    pullPolicy: Never
+  frontend:
+    repository: kubepulse-frontend
+    tag: local
+    pullPolicy: Never
+  mongodb:
+    repository: mongo
+    tag: "7"
+  redis:
+    repository: redis
+    tag: "7"
+
+namespace: kubepulse
+
+service:
+  backend:
+    port: 5000
+  frontend:
+    port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: kubepulse.local
+  tls: false
+
+mongodb:
+  database: kubepulse
+
+redis:
+  port: 6379
+
+openai:
+  model: gpt-4o-mini
+  # API key is provided via existing secret 'backend-secrets' in kubernetes/backend-deployment.yaml
+  existingSecretName: backend-secrets
+  existingSecretKey: OPENAI_API_KEY
