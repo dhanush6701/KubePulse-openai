@@ -52,7 +52,11 @@ metadata:
 type: Opaque
 stringData:
   JWT_SECRET: "kubepulse-secret-change-in-production-2024"
-  OPENAI_API_KEY:""
+  # NOTE: Do NOT commit real API keys into repository.
+  # Create this secret at deploy time (see `create-openai-secret.sh`) or use
+  # `kubectl create secret generic backend-secrets --from-literal=OPENAI_API_KEY=<YOUR_KEY> -n kubepulse`
+  # The value below is intentionally left empty in the repo.
+  OPENAI_API_KEY: ""
 ---
 apiVersion: apps/v1
 kind: Deployment

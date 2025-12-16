@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubepulse-incidents
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-scan
+  namespace: kubepulse-incidents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemetry-scan
+  template:
+    metadata:
+      labels:
+        app: telemetry-scan
+    spec:
+      nodeSelector:
+        demo/state: pending
+      containers:
+        - name: telemetry-scan
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting telemetry scan";
+              sleep 2;
+              echo "Waiting for dedicated worker node...";
+              sleep 3600
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-cron
+  namespace: kubepulse-incidents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report-cron
+  template:
+    metadata:
+      labels:
+        app: report-cron
+    spec:
+      containers:
+        - name: report-cron
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Generating cluster report";
+              sleep 2;
+              echo "ERROR: Redis cache unreachable";
+              exit 1
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-primer
+  namespace: kubepulse-incidents
+spec:
+  template:
+    metadata:
+      labels:
+        app: cache-primer
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cache-primer
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Priming cache";
+              sleep 2;
+              echo "Cache warm and ready";
+              exit 0
+  backoffLimit: 0

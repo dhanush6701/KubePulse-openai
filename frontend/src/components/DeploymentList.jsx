@@ -37,7 +37,7 @@ const DeploymentList = ({ deployments, namespace }) => {
     };
 
     return (
-        <div className="glass-panel flex h-full flex-col rounded-2xl">
+        <div className="glass-panel flex flex-col rounded-2xl">
             <div className="border-b border-theme bg-surface-soft p-4">
                 <div className="flex items-center justify-between">
                     <div>
@@ -53,7 +53,7 @@ const DeploymentList = ({ deployments, namespace }) => {
                 </div>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto p-3">
+            <div className="space-y-3 p-3">
                 <AnimatePresence initial={false}>
                     {deployments.map((dep) => {
                     const readiness = dep.replicas === 0 ? 0 : (dep.readyReplicas / dep.replicas) * 100;

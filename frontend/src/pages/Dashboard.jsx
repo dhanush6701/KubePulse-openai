@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
 import { Box, Layers, Server, Activity, RefreshCw, ShieldCheck, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
@@ -8,14 +8,15 @@ import PodList from '../components/PodList';
 import DeploymentList from '../components/DeploymentList';
 import PodDetails from '../components/PodDetails';
 import AssistantPanel from '../components/AssistantPanel';
+const PREFERRED_NAMESPACES = ['kubepulse', 'kubepulse-incidents', 'default', 'kube-system'];
 
 const Dashboard = () => {
-    const [namespace, setNamespace] = useState('kubepulse'); // Default to our ns
+    const [namespace, setNamespace] = useState('kubepulse'); // Default namespace
     const [selectedPod, setSelectedPod] = useState(null);
-    const queryClient = useQueryClient();
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Queries
-    const { data: namespaces = [] } = useQuery({
+    const { data: namespaces = [], refetch: refetchNamespaces } = useQuery({
         queryKey: ['namespaces'],
         queryFn: async () => {
             const { data } = await api.get('/k8s/namespaces');
@@ -23,11 +24,13 @@ const Dashboard = () => {
         }
     });
 
-    const allowedNamespaces = useMemo(() => (
-        namespaces.filter(ns => ['kubepulse', 'default', 'kube-system'].includes(ns))
-    ), [namespaces]);
-
-    const namespaceOptions = allowedNamespaces.length ? allowedNamespaces : namespaces;
+    const namespaceOptions = useMemo(() => {
+        if (!namespaces.length) return [];
+        const preferred = PREFERRED_NAMESPACES.filter((ns) => namespaces.includes(ns));
+        const remaining = namespaces.filter((ns) => !PREFERRED_NAMESPACES.includes(ns));
+        const ordered = [...preferred, ...remaining];
+        return ordered.length ? ordered : namespaces;
+    }, [namespaces]);
 
     useEffect(() => {
         if (namespaceOptions.length && !namespaceOptions.includes(namespace)) {
@@ -36,7 +39,7 @@ const Dashboard = () => {
         }
     }, [namespaceOptions, namespace]);
 
-    const { data: pods = [] } = useQuery({
+    const { data: pods = [], refetch: refetchPods } = useQuery({
         queryKey: ['pods', namespace],
         queryFn: async () => {
             const { data } = await api.get(`/k8s/pods?ns=${namespace}`);
@@ -45,7 +48,7 @@ const Dashboard = () => {
         refetchInterval: 2000
     });
 
-    const { data: deployments = [] } = useQuery({
+    const { data: deployments = [], refetch: refetchDeployments } = useQuery({
         queryKey: ['deployments', namespace],
         queryFn: async () => {
             const { data } = await api.get(`/k8s/deployments?ns=${namespace}`);
@@ -70,14 +73,20 @@ const Dashboard = () => {
         }, {})
     ), [pods]);
 
-    const handleRefresh = () => {
-        queryClient.invalidateQueries({ queryKey: ['pods', namespace] });
-        queryClient.invalidateQueries({ queryKey: ['deployments', namespace] });
-        queryClient.invalidateQueries({ queryKey: ['namespaces'] });
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await Promise.all([
+                refetchPods(),
+                refetchDeployments(),
+                refetchNamespaces()
+            ]);
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
     return (
-        <>
         <div className="space-y-6">
             <section className="glass-panel rounded-2xl border border-white/10 p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -103,10 +112,14 @@ const Dashboard = () => {
                         <button
                             type="button"
                             onClick={handleRefresh}
-                            className="btn-primary whitespace-nowrap text-xs font-semibold"
+                            disabled={isRefreshing}
+                            className="btn-primary whitespace-nowrap text-xs font-semibold disabled:opacity-60"
                         >
-                            <RefreshCw size={14} />
-                            Refresh data
+                            <RefreshCw
+                                size={14}
+                                className={clsx({ 'animate-spin-slow': isRefreshing })}
+                            />
+                            {isRefreshing ? 'Refreshing...' : 'Refresh data'}
                         </button>
                     </div>
                 </div>
@@ -182,7 +195,7 @@ const Dashboard = () => {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 {/* Left Column: Lists */}
                 <div className="flex flex-col gap-6">
-                    <div className="h-[360px]">
+                    <div>
                         <PodList
                             pods={pods}
                             selectedPod={selectedPod}
@@ -195,7 +208,7 @@ const Dashboard = () => {
                             onClose={() => setSelectedPod(null)}
                         />
                     </div>
-                    <div className="h-[360px]">
+                    <div>
                         <DeploymentList
                             deployments={deployments}
                             namespace={namespace}
@@ -258,8 +271,6 @@ const Dashboard = () => {
                 </div>
             </div>
         </div>
-        <AssistantPanel selectedPod={selectedPod} namespace={namespace} />
-    </>
     );
 };
 

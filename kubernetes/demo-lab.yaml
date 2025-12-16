@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubepulse-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-failure
+  namespace: kubepulse-lab
+  labels:
+    app: lab-failure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-failure
+  template:
+    metadata:
+      labels:
+        app: lab-failure
+    spec:
+      containers:
+        - name: crash-demo
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              echo "Bootstrapping report processor";
+              sleep 2;
+              echo "ERROR: Unable to reach MongoDB at $DB_HOST";
+              exit 1
+          env:
+            - name: DB_HOST
+              value: invalid.db.local
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-pending
+  namespace: kubepulse-lab
+  labels:
+    app: lab-pending
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-pending
+  template:
+    metadata:
+      labels:
+        app: lab-pending
+    spec:
+      nodeSelector:
+        lab/demo: unschedulable
+      containers:
+        - name: pending-demo
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - "echo 'Waiting for resources...'; sleep 3600"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lab-succeeded
+  namespace: kubepulse-lab
+spec:
+  template:
+    metadata:
+      labels:
+        app: lab-succeeded
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: success-demo
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting analytics export";
+              sleep 3;
+              echo "Job completed successfully";
+              exit 0
+  backoffLimit: 0

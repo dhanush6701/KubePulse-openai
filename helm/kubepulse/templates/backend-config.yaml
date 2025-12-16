@@ -20,4 +20,4 @@ type: Opaque
 stringData:
   JWT_SECRET: "kubepulse-secret-change-in-production-2024"
   # Fill this AFTER deploy using kubectl edit, or hardcode for local dev
- OPENAI_API_KEY: ""
+  OPENAI_API_KEY: ""

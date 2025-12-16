@@ -48,7 +48,7 @@ const PodList = ({ pods, onSelectPod, selectedPod }) => {
     };
 
     return (
-        <div className="glass-panel flex h-full flex-col rounded-2xl">
+        <div className="glass-panel flex flex-col rounded-2xl">
             <div className="border-b border-theme bg-surface-soft p-4">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -108,7 +108,7 @@ const PodList = ({ pods, onSelectPod, selectedPod }) => {
                 </div>
             </div>
 
-            <div className="flex-1 space-y-2 overflow-y-auto p-3">
+            <div className="space-y-2 p-3">
                 <AnimatePresence initial={false}>
                     {filteredPods.map((pod) => (
                         <motion.div
